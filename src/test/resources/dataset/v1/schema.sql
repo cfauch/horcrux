@@ -1,3 +1,4 @@
+-- apply before all other scripts.
 CREATE TABLE IF NOT EXISTS horcrux_versions (
 	number INT NOT NULL,
 	script VARCHAR(64),
@@ -7,4 +8,4 @@ CREATE TABLE IF NOT EXISTS horcrux_versions (
 -- set to true the current version of the database
 MERGE INTO horcrux_versions (number, script, active) KEY(number) VALUES(1, NULL, true);
 
--- do other tables and contraints creation
+-- do other tables and constraints creation

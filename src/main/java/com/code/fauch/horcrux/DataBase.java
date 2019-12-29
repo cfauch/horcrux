@@ -205,10 +205,13 @@ public final class DataBase implements AutoCloseable {
             final ResultSet tables = meta.getTables(null, null, this.versionTable.toUpperCase(), null);
             if (tables.next()) {
                 execute(conn, this.scriptDir.resolve("populate.sql"));
+                conn.commit();
             }
             else if (applySchema) {
                 execute(conn, this.scriptDir.resolve("schema.sql"));
+                conn.commit();
                 execute(conn, this.scriptDir.resolve("populate.sql"));
+                conn.commit();
             } else {
                 throw new SQLWarning("The version table is not present in the current database: " + this.versionTable);
             }
@@ -223,15 +226,13 @@ public final class DataBase implements AutoCloseable {
             if (!scripts.isEmpty()) {
                 if (applyUpgrade) {
                     for (String script : scripts) {
-                        System.out.println("apply script " + script);
                         execute(conn, this.scriptDir.resolve(script));
+                        conn.commit();
                     }
                 } else {
                     throw new SQLWarning("The current database should be upgraded.");
                 }
             }
-
-            conn.commit();
             
             try (PreparedStatement statement = conn.prepareStatement(this.activeVersionCmd)) {
                 try (ResultSet result = statement.executeQuery()) {

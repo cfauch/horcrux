@@ -20,8 +20,13 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLWarning;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Properties;
 
 import org.junit.Assert;
@@ -41,20 +46,20 @@ public class DataBaseTest {
     @Test
     public void testEmptyBaseFirstVersion() throws URISyntaxException, SQLException, IOException {
         final Properties prop = new Properties();
-        prop.setProperty("jdbcUrl", "jdbc:h2:mem:test_mem");
+        prop.setProperty("jdbcUrl", "jdbc:h2:mem:v1;DB_CLOSE_DELAY=-1");
         prop.setProperty("username", "harry");
         prop.setProperty("password", "");
         final Path scripts = Paths.get(getClass().getResource("/dataset/v1").toURI());
         try(DataBase db = DataBase.init("basic").withScripts(scripts).versionTable("horcrux_versions").build(prop)) {
-            final Integer version = db.open(ECreateOption.SCHEMA);
-            Assert.assertEquals(1, version.intValue());
+            db.open(ECreateOption.SCHEMA);
+            Assert.assertEquals(1, db.getCurrentVersion().intValue());
         }
     }
 
     @Test(expected=SQLWarning.class)
     public void testEmptyBaseWithoutSchema() throws URISyntaxException, SQLException, IOException {
         final Properties prop = new Properties();
-        prop.setProperty("jdbcUrl", "jdbc:h2:mem:test_mem");
+        prop.setProperty("jdbcUrl", "jdbc:h2:mem:v1b");
         prop.setProperty("username", "harry");
         prop.setProperty("password", "");
         final Path scripts = Paths.get(getClass().getResource("/dataset/v1").toURI());
@@ -65,21 +70,32 @@ public class DataBaseTest {
      }
     
     @Test
-    public void testEmptyBaseScdVersion() throws URISyntaxException, SQLException, IOException {
+    public void testEmptyBaseV2() throws URISyntaxException, SQLException, IOException {
         final Properties prop = new Properties();
-        prop.setProperty("jdbcUrl", "jdbc:h2:mem:test_mem");
+        prop.setProperty("jdbcUrl", "jdbc:h2:mem:v2;DB_CLOSE_DELAY=-1");
         prop.setProperty("username", "harry");
         prop.setProperty("password", "");
         final Path scripts = Paths.get(getClass().getResource("/dataset/v2").toURI());
         try(DataBase db = DataBase.init("basic").withScripts(scripts).versionTable("horcrux_versions").build(prop)) {
-            final Integer version = db.open(ECreateOption.SCHEMA);
-            Assert.assertEquals(2, version.intValue());
+            db.open(ECreateOption.SCHEMA);
+            Assert.assertEquals(2, db.getCurrentVersion().intValue());
+            try(Connection conn = db.openSession()) {
+                final DatabaseMetaData meta = conn.getMetaData();
+                final ResultSet tables = meta.getTables(null, null, "horcrux_users".toUpperCase(), null);
+                Assert.assertTrue(tables.next());
+                final ResultSet columns = meta.getColumns(null, null, "horcrux_users".toUpperCase(), null);
+                final ArrayList<String> colNames = new ArrayList<>();
+                while(columns.next()) {
+                    colNames.add(columns.getString("COLUMN_NAME"));
+                }
+                Assert.assertEquals(Arrays.asList("ID", "NAME", "PROFILE"), colNames);
+            }
         }
     }
     
     @Test(expected=SQLWarning.class)
-    public void testOldExistingBaseScdVersionWithoutUpgrade() throws URISyntaxException, SQLException, IOException {
-        final URI dbFile = getClass().getResource("/dataset/v1/").toURI().resolve("test_mem");
+    public void testOldExistingBaseWithoutUpgrade() throws URISyntaxException, SQLException, IOException {
+        final URI dbFile = getClass().getResource("/dataset/v1/").toURI().resolve("v1");
         final String url = String.format("jdbc:h2:%s", dbFile.getPath());
         final Properties prop = new Properties();
         prop.setProperty("jdbcUrl", url);
@@ -87,15 +103,15 @@ public class DataBaseTest {
         prop.setProperty("password", "");
         final Path scripts = Paths.get(getClass().getResource("/dataset/v2").toURI());
         try(DataBase db = DataBase.init("basic").withScripts(scripts).versionTable("horcrux_versions").build(prop)) {
-            final Integer version = db.open(ECreateOption.SCHEMA);
-            Assert.assertEquals(1, version.intValue());
+            db.open(ECreateOption.SCHEMA);
+            Assert.assertEquals(1, db.getCurrentVersion().intValue());
         }
     }
     
     @Test
-    public void testOldExistingBaseScdVersionUpgrade() throws URISyntaxException, SQLException, IOException {
+    public void testV1ToV2Upgrade() throws URISyntaxException, SQLException, IOException {
         final Path dbFile = this.folder.getRoot().toPath().resolve("yo.mv.db");
-        Files.copy(Paths.get(getClass().getResource("/dataset/v1/test_mem.mv.db").toURI()), dbFile);
+        Files.copy(Paths.get(getClass().getResource("/dataset/v1/v1.mv.db").toURI()), dbFile);
         final String url = String.format("jdbc:h2:%s", this.folder.getRoot().toURI().resolve("yo"));
         final Properties prop = new Properties();
         prop.setProperty("jdbcUrl", url);
@@ -107,6 +123,128 @@ public class DataBaseTest {
         try(DataBase db = DataBase.init("basic").withScripts(scripts).versionTable("horcrux_versions").build(prop)) {
             final Integer version = db.open(ECreateOption.UPGRADE);
             Assert.assertEquals(2, version.intValue());
+            try(Connection conn = db.openSession()) {
+                final DatabaseMetaData meta = conn.getMetaData();
+                final ResultSet tables = meta.getTables(null, null, "horcrux_users".toUpperCase(), null);
+                Assert.assertTrue(tables.next());
+                final ResultSet columns = meta.getColumns(null, null, "horcrux_users".toUpperCase(), null);
+                final ArrayList<String> colNames = new ArrayList<>();
+                while(columns.next()) {
+                    colNames.add(columns.getString("COLUMN_NAME"));
+                }
+                Assert.assertEquals(Arrays.asList("ID", "NAME", "PROFILE"), colNames);
+            }
+        }
+    }
+    
+    @Test
+    public void testEmptyBaseV3() throws URISyntaxException, SQLException, IOException {
+        final Properties prop = new Properties();
+        prop.setProperty("jdbcUrl", "jdbc:h2:mem:v3;DB_CLOSE_DELAY=-1");
+        prop.setProperty("username", "harry");
+        prop.setProperty("password", "");
+        final Path scripts = Paths.get(getClass().getResource("/dataset/v3").toURI());
+        try(DataBase db = DataBase.init("basic").withScripts(scripts).versionTable("horcrux_versions").build(prop)) {
+            final Integer version = db.open(ECreateOption.SCHEMA);
+            Assert.assertEquals(3, version.intValue());
+            try(Connection conn = db.openSession()) {
+                final DatabaseMetaData meta = conn.getMetaData();
+                final ResultSet tables = meta.getTables(null, null, "horcrux_users".toUpperCase(), null);
+                Assert.assertTrue(tables.next());
+                final ResultSet columns = meta.getColumns(null, null, "horcrux_users".toUpperCase(), null);
+                final ArrayList<String> colNames = new ArrayList<>();
+                while(columns.next()) {
+                    colNames.add(columns.getString("COLUMN_NAME"));
+                }
+                Assert.assertEquals(Arrays.asList("ID", "NAME", "PROFILE", "EMAIL"), colNames);
+            }
+        }
+    }
+    
+    @Test
+    public void testV1ToV3Upgrade() throws URISyntaxException, SQLException, IOException {
+        final Path dbFile = this.folder.getRoot().toPath().resolve("yo.mv.db");
+        Files.copy(Paths.get(getClass().getResource("/dataset/v1/v1.mv.db").toURI()), dbFile);
+        final String url = String.format("jdbc:h2:%s", this.folder.getRoot().toURI().resolve("yo"));
+        final Properties prop = new Properties();
+        prop.setProperty("jdbcUrl", url);
+        prop.setProperty("username", "harry");
+        prop.setProperty("password", "");
+        prop.setProperty("autoCommit", "false");
+        prop.setProperty("poolName", "database-connection-pool");
+        final Path scripts = Paths.get(getClass().getResource("/dataset/v3").toURI());
+        try(DataBase db = DataBase.init("basic").withScripts(scripts).versionTable("horcrux_versions").build(prop)) {
+            final Integer version = db.open(ECreateOption.UPGRADE);
+            Assert.assertEquals(3, version.intValue());
+            try(Connection conn = db.openSession()) {
+                final DatabaseMetaData meta = conn.getMetaData();
+                final ResultSet tables = meta.getTables(null, null, "horcrux_users".toUpperCase(), null);
+                Assert.assertTrue(tables.next());
+                final ResultSet columns = meta.getColumns(null, null, "horcrux_users".toUpperCase(), null);
+                final ArrayList<String> colNames = new ArrayList<>();
+                while(columns.next()) {
+                    colNames.add(columns.getString("COLUMN_NAME"));
+                }
+                Assert.assertEquals(Arrays.asList("ID", "NAME", "PROFILE", "EMAIL"), colNames);
+            }
+        }
+    }
+    
+    @Test
+    public void testV2ToV3Upgrade() throws URISyntaxException, SQLException, IOException {
+        final Path dbFile = this.folder.getRoot().toPath().resolve("yo.mv.db");
+        Files.copy(Paths.get(getClass().getResource("/dataset/v2/v2.mv.db").toURI()), dbFile);
+        final String url = String.format("jdbc:h2:%s", this.folder.getRoot().toURI().resolve("yo"));
+        final Properties prop = new Properties();
+        prop.setProperty("jdbcUrl", url);
+        prop.setProperty("username", "harry");
+        prop.setProperty("password", "");
+        prop.setProperty("autoCommit", "false");
+        prop.setProperty("poolName", "database-connection-pool");
+        final Path scripts = Paths.get(getClass().getResource("/dataset/v3").toURI());
+        try(DataBase db = DataBase.init("basic").withScripts(scripts).versionTable("horcrux_versions").build(prop)) {
+            final Integer version = db.open(ECreateOption.UPGRADE);
+            Assert.assertEquals(3, version.intValue());
+            try(Connection conn = db.openSession()) {
+                final DatabaseMetaData meta = conn.getMetaData();
+                final ResultSet tables = meta.getTables(null, null, "horcrux_users".toUpperCase(), null);
+                Assert.assertTrue(tables.next());
+                final ResultSet columns = meta.getColumns(null, null, "horcrux_users".toUpperCase(), null);
+                final ArrayList<String> colNames = new ArrayList<>();
+                while(columns.next()) {
+                    colNames.add(columns.getString("COLUMN_NAME"));
+                }
+                Assert.assertEquals(Arrays.asList("ID", "NAME", "PROFILE", "EMAIL"), colNames);
+            }
+        }
+    }
+    
+    @Test
+    public void testV1UpgradedV2ToV3Upgrade() throws URISyntaxException, SQLException, IOException {
+        final Path dbFile = this.folder.getRoot().toPath().resolve("yo.mv.db");
+        Files.copy(Paths.get(getClass().getResource("/dataset/v2/v1_to_v2.mv.db").toURI()), dbFile);
+        final String url = String.format("jdbc:h2:%s", this.folder.getRoot().toURI().resolve("yo"));
+        final Properties prop = new Properties();
+        prop.setProperty("jdbcUrl", url);
+        prop.setProperty("username", "harry");
+        prop.setProperty("password", "");
+        prop.setProperty("autoCommit", "false");
+        prop.setProperty("poolName", "database-connection-pool");
+        final Path scripts = Paths.get(getClass().getResource("/dataset/v3").toURI());
+        try(DataBase db = DataBase.init("basic").withScripts(scripts).versionTable("horcrux_versions").build(prop)) {
+            final Integer version = db.open(ECreateOption.UPGRADE);
+            Assert.assertEquals(3, version.intValue());
+            try(Connection conn = db.openSession()) {
+                final DatabaseMetaData meta = conn.getMetaData();
+                final ResultSet tables = meta.getTables(null, null, "horcrux_users".toUpperCase(), null);
+                Assert.assertTrue(tables.next());
+                final ResultSet columns = meta.getColumns(null, null, "horcrux_users".toUpperCase(), null);
+                final ArrayList<String> colNames = new ArrayList<>();
+                while(columns.next()) {
+                    colNames.add(columns.getString("COLUMN_NAME"));
+                }
+                Assert.assertEquals(Arrays.asList("ID", "NAME", "PROFILE", "EMAIL"), colNames);
+            }
         }
     }
     
