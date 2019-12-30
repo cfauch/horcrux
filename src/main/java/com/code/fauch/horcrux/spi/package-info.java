@@ -13,6 +13,8 @@
  * limitations under the License.
  */
 /**
+ * This package allows to extend horcrux using the Service Provider Interface. 
+ * 
  * @author c.fauch
  *
  */
