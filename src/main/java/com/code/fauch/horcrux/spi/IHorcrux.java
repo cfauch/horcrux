@@ -44,10 +44,10 @@ public interface IHorcrux {
     void close(DataSource ds);
 
     /**
-     * Indicates if this horcrux can be used the type requested;
+     * Indicates if this horcrux implementation can be used for requested type;
      * 
      * @param type the type of horcrux (not null)
-     * @return true if this horcrux can be associated with the given type.
+     * @return true if this horcrux is an implementation corresponding to the given type.
      */
     boolean accept(String type);
     

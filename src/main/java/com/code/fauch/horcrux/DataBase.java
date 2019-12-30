@@ -168,8 +168,8 @@ public final class DataBase implements AutoCloseable {
      * Creates and returns a <code>DataBase</code> builder with the forcrux corresponding to the
      * given type.
      * 
-     * @param type the type of the requested horcrux
-     * @return
+     * @param type the type of the requested horcrux: "basic", "simple", "pool", ... depending on plugins
+     * @return the builder
      */
     public static Builder init(final String type) {
         return new Builder(Providers.getHorcruxInstance(type));
@@ -202,7 +202,7 @@ public final class DataBase implements AutoCloseable {
         
         try (Connection conn = openSession()) {
             final DatabaseMetaData meta = conn.getMetaData();
-            final ResultSet tables = meta.getTables(null, null, this.versionTable.toUpperCase(), null);
+            final ResultSet tables = meta.getTables(null, null, this.versionTable, null);
             if (tables.next()) {
                 execute(conn, this.scriptDir.resolve("populate.sql"));
                 conn.commit();
@@ -215,7 +215,7 @@ public final class DataBase implements AutoCloseable {
             } else {
                 throw new SQLWarning("The version table is not present in the current database: " + this.versionTable);
             }
-            
+
             try (PreparedStatement statement = conn.prepareStatement(this.findScriptsCmd)) {
                 try (ResultSet result = statement.executeQuery()) {
                     while (result.next()) {

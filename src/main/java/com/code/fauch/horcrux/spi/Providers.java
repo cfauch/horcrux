@@ -30,14 +30,14 @@ public final class Providers {
     private static final ServiceLoader<IHorcrux> HX = ServiceLoader.load(IHorcrux.class);
 
     /**
-     * Research a horcrux of the given name.
+     * Research a horcrux implementation for requested type.
      * 
-     * @param name the name of the horcrux to return (not null)
-     * @return the corresponding horcrux instance
+     * @param type the requested type of the horcrux implementation (not null)
+     * @return the corresponding horcrux implementation
      */
-    public static IHorcrux getHorcruxInstance(final String name) {
+    public static IHorcrux getHorcruxInstance(final String type) {
         for (IHorcrux hx : HX) {
-            if (hx.accept(name)) {
+            if (hx.accept(type)) {
                 return hx;
             }
         }

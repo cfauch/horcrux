@@ -1,5 +1,5 @@
 -- apply before all other scripts.
-CREATE TABLE IF NOT EXISTS horcrux_versions (
+CREATE TABLE IF NOT EXISTS HORCRUX_VERSIONS (
     number INT NOT NULL,
     script VARCHAR(64),
     active BOOLEAN
@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS horcrux_versions (
 MERGE INTO horcrux_versions (number, script, active) KEY(number) VALUES(3, NULL, true);
 
 -- do other tables and constraints creation
-CREATE TABLE IF NOT EXISTS horcrux_users (
+CREATE TABLE IF NOT EXISTS HORCRUX_USERS (
     id UUID PRIMARY KEY,
     name VARCHAR(64),
     profile VARCHAR(32),

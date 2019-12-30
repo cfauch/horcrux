@@ -29,7 +29,7 @@ import com.code.fauch.horcrux.spi.IHorcrux;
 public final class BasicHorcrux implements IHorcrux {
     
     /**
-     * The expected type name.
+     * The implemented horcrux type.
      */
     private static final String TYPE = "basic";
 
