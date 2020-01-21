@@ -30,6 +30,13 @@ public final class Providers {
     private static final ServiceLoader<IHorcrux> HX = ServiceLoader.load(IHorcrux.class);
 
     /**
+     * No constructor.
+     */
+    private Providers() {
+        //Nothing to do
+    }
+    
+    /**
      * Research a horcrux implementation for requested type.
      * 
      * @param type the requested type of the horcrux implementation (not null)
