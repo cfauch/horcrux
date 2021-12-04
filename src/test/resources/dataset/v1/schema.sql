@@ -9,3 +9,4 @@ CREATE TABLE IF NOT EXISTS horcrux_versions (
 MERGE INTO HORCRUX_VERSIONS (number, script, active) KEY(number) VALUES(1, NULL, true);
 
 -- do other tables and constraints creation
+-- insert data
