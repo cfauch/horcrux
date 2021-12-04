@@ -12,7 +12,11 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Objects;
+import java.util.StringJoiner;
 
+/**
+ * Utility class used to run sql script.
+ */
 final class DataSourceUtils {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DataSourceUtils.class);
@@ -22,8 +26,8 @@ final class DataSourceUtils {
      *
      * @param conn the open connection (not null)
      * @param file the path of the script file to execute (not null)
-     * @throws IOException
-     * @throws SQLException
+     * @throws SQLException if unable to update database due to some SQL errors.
+     * @throws IOException if unable to update database due to file reading issues.
      */
     static void execute(final Connection conn, final Path file) throws IOException, SQLException {
         LOGGER.info("running script: {}", file);
@@ -37,20 +41,20 @@ final class DataSourceUtils {
      *
      * @param conn the open connection (not null)
      * @param reader the reader open on the script to execute (not null)
-     * @throws SQLException
-     * @throws IOException
+     * @throws SQLException if unable to update database due to some SQL errors.
+     * @throws IOException if unable to update database due to file reading issues.
      */
     static void execute(final Connection conn, final BufferedReader reader) throws SQLException, IOException {
         String line = null;
-        StringBuilder buff = new StringBuilder();
+        StringJoiner joiner = new StringJoiner(" ");
         try(Statement statement = Objects.requireNonNull(conn, "conn is missing").createStatement()) {
             while ((line = reader.readLine()) != null) {
                 if(line.length() > 0 && line.charAt(0) == '-' || line.length() == 0 )
                     continue;
-                buff.append(line);
+                joiner.add(line);
                 if (line.endsWith(";")) {
-                    statement.execute(buff.toString());
-                    buff = new StringBuilder();
+                    statement.execute(joiner.toString());
+                    joiner = new StringJoiner(" ");
                 }
             }
         }

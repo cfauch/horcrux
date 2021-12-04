@@ -11,6 +11,11 @@ import java.nio.file.Paths;
 import java.sql.*;
 import java.util.Objects;
 
+/**
+ * The <code>Migration</code> class defines the main object responsible to update databases.
+ *
+ * @author c.fauch
+ */
 public final class Migration {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Migration.class);
@@ -20,7 +25,7 @@ public final class Migration {
     private static final String DISABLE_OTHER_VERSIONS = "UPDATE %s SET active = FALSE WHERE number != ?";
 
     /**
-     * Name of the table where are store each database versions.
+     * Name of the table where are stored each database versions.
      */
     private final String versionTable;
 
@@ -44,11 +49,18 @@ public final class Migration {
      */
     private final Path scriptDir;
 
+    /**
+     * Option to specify whether the schema.sql should be applied or not if the database is empty.
+     */
     private final boolean createSchema;
 
-    private final boolean runUpdates;
     /**
-     * Builder to create and configure <code>DataBase</code> object.
+     * Option to specify whether the migration scripts should be applied or not if the database is too old.
+     */
+    private final boolean runUpdates;
+
+    /**
+     * Builder to create and configure <code>Migration</code> object.
      *
      * @author c.fauch
      *
@@ -56,7 +68,7 @@ public final class Migration {
     public static final class Builder {
 
         /**
-         * The name of table in database where are store all versions
+         * The name of table in database where are stored all versions
          */
         private String versionTable = null;
 
@@ -65,13 +77,18 @@ public final class Migration {
          */
         private Path scripts = null;
 
+        /**
+         * The create schema option.
+         */
         private boolean createSchema = false;
 
+        /**
+         * The running migration scripts option
+         */
         private boolean runUpdates = false;
 
         /**
-         * Specify the path of the script files directory
-         *
+         * Specifies the path of the script files directory
          * @param dir the path of the directory (not null)
          * @return this builder
          */
@@ -81,8 +98,7 @@ public final class Migration {
         }
 
         /**
-         * Specify the name of the table in database where are store all versions.
-         *
+         * Specifies the name of the table in database where are store all versions.
          * @param name the name of the table (not null)
          * @return this builder
          */
@@ -91,11 +107,24 @@ public final class Migration {
             return this;
         }
 
+        /**
+         * Specifies whether the schema.sql should be applied or not
+         * @param option true to apply the schema.sql script if the database is empty. If false, then an SQL exception
+         *               will be raised instead.
+         * @return this builder
+         */
         public Migration.Builder createSchema(final Boolean option) {
             this.createSchema = option;
             return this;
         }
 
+        /**
+         * Specifies whether the migration scripts should be applied or not.
+         * @param option true to apply the migration scripts if the database is too old. If false,
+         *               an SQL exception
+         *               will be raised instead
+         * @return this builder
+         */
         public Migration.Builder runUpdates(final Boolean option) {
             this.runUpdates = option;
             return this;
@@ -103,25 +132,38 @@ public final class Migration {
 
         /**
          * Build the <code>Migration</code> object
-         *
-         * @return the corresponding <code>DataBase</code> instance
+         * @return the corresponding <code>Migration</code> instance
          */
-        public Migration build() throws URISyntaxException {
+        public Migration build() {
             return new Migration(this);
         }
 
     }
 
-    private Migration(final Builder builder) throws URISyntaxException {
-        this.versionTable = builder.versionTable == null ? DEFAULT_VERSION_TABLE : builder.versionTable;
-        this.scriptDir = builder.scripts == null ? Paths.get(Objects.requireNonNull(getClass().getResource("/")).toURI()) : builder.scripts;
-        this.findScriptsCmd = String.format(SELECT_SCRIPTS, this.versionTable, this.versionTable);
-        this.enableVersionCmd = String.format(ENABLE_VERSION, this.versionTable);
-        this.disableOtherVersionsCmd = String.format(DISABLE_OTHER_VERSIONS, this.versionTable);
-        this.createSchema = builder.createSchema;
-        this.runUpdates = builder.runUpdates;
+    /**
+     * Constructor.
+     * @param builder the builder (not null)
+     */
+    private Migration(final Builder builder) {
+        try {
+            this.versionTable = builder.versionTable == null ? DEFAULT_VERSION_TABLE : builder.versionTable;
+            this.scriptDir = builder.scripts == null ? Paths.get(Objects.requireNonNull(getClass().getResource("/")).toURI()) : builder.scripts;
+            this.findScriptsCmd = String.format(SELECT_SCRIPTS, this.versionTable, this.versionTable);
+            this.enableVersionCmd = String.format(ENABLE_VERSION, this.versionTable);
+            this.disableOtherVersionsCmd = String.format(DISABLE_OTHER_VERSIONS, this.versionTable);
+            this.createSchema = builder.createSchema;
+            this.runUpdates = builder.runUpdates;
+        } catch (URISyntaxException err) {
+            throw new RuntimeException("Unexpected error while computing resources path", err);
+        }
     }
 
+    /**
+     * Update the given database.
+     * @param dataSource the given database (not null)
+     * @throws SQLException if unable to update database due to some SQL errors.
+     * @throws IOException if unable to update database due to some file reading issues.
+     */
     public void update(final DataSource dataSource) throws SQLException, IOException {
         Connection conn = null;
         try {
@@ -149,6 +191,12 @@ public final class Migration {
         }
     }
 
+    /**
+     * Checks if version table exists and creates schema if needed.
+     * @param conn the open connection (not null)
+     * @throws SQLException if unable to update database due to some SQL errors.
+     * @throws IOException if unable to update database due to some file reading issues.
+     */
     private void initialize(final Connection conn) throws SQLException, IOException {
         final DatabaseMetaData meta = conn.getMetaData();
         try(ResultSet tables = meta.getTables(null, null, this.versionTable, null)) {
@@ -165,12 +213,18 @@ public final class Migration {
         }
     }
 
+    /**
+     * Checks database version and apply migration scripts if needed.
+     * @param conn the open connection (not null)
+     * @throws SQLException if unable to update database due to some SQL errors.
+     * @throws IOException if unable to update database due to some file reading issues.
+     */
     private void runUpdateScripts(final Connection conn) throws SQLException, IOException {
         try (PreparedStatement statement = conn.prepareStatement(this.findScriptsCmd)) {
             try (ResultSet result = statement.executeQuery()) {
                 if (result.next()) {
                     if(!this.runUpdates) {
-                        throw new SQLWarning("Missing updates.");
+                        throw new SQLWarning("Database is too old.");
                     }
                     do {
                         DataSourceUtils.execute(conn, this.scriptDir.resolve(result.getString(2)));
@@ -181,6 +235,12 @@ public final class Migration {
         }
     }
 
+    /**
+     * Updates the current database version.
+     * @param conn the open connection (not null)
+     * @param version the new version number
+     * @throws SQLException if unable to update database due to some SQL errors.
+     */
     private void setVersion(final Connection conn, final int version) throws SQLException {
         try (PreparedStatement statement = conn.prepareStatement(this.enableVersionCmd)) {
             statement.setInt(1, version);

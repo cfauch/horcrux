@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Claire Fauch
+ * Copyright 2021 Claire Fauch
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at 
@@ -14,80 +14,56 @@
  */
 /**
  * <p>
- * The main API for database access and management.
+ * Database versioning.
  * </p>
  * <h3>Setting up</h3>
  * <p>
  * Creates a directory with following files:
  * <ul>
- * <li><code>schema.sql</code>: containing data definitions</li>
- * <li><code>populate.sql</code>: containing all known database versions</li>
- * <li>all migration scripts to apply to upgrade the database
+ * <li><code>schema.sql</code>: with database definitions and eventually some predefined records</li>
+ * <li><code>populate.sql</code>: with all known versions</li>
+ * <li>all scripts to apply to update the database
  * </ul>
  * </p>
- * <h3>Database access and management</h3>
- * <p>
- * First, instantiate {@linkplain com.code.fauch.horcrux.DataBase}, like this:
- * </p>
+ * <h3>Updating the database</h3>
  * <pre>
- *         final DataBase ddb = DataBase.init("pool")
-                .withScripts(Paths.get(getClass().getResource("/dataset/v1").toURI()))
-                .versionTable("HORCRUX_VERSIONS")
-                .build(prop);
+ *        final Migration migration = new Migration.Builder()
+ *             .versionTable("HORCRUX_VERSIONS)
+ *             .createSchema(true)
+ *             .runUpdates(true)
+ *             .withScripts(Paths.get(getClass().getResource("/dataset/v3").toURI()))
+ *             .build();
+ *        migration.update(ds);
  * </pre>
  * <p>
+ * Use the builder <code>Migration.Builder</code> to build a new <code>Migration</code> object.
  * <ul>
- * <li><code>DataBase.init("pool")</code> initializes the <code>DataBase</code> object with a 
- * connection pool available in the application class path. You can also use <code>DataBase.init("basic")</code>
- * if you want to use a simple data source without connection pool.</li>
- * <li><code>withScripts(...)</code> specifies the path of the directory containing migration scripts, 
+ * <li><code>withScripts(...)</code> specifies the path of the directory containing migration scripts,
  * <code>schema.sql</code> and <code>populate.sql</code>. 
  * By default the directory used is the root folder of the application.</li>
- * <li><code>versionTable("HORCRUX_VERSIONS")</code> specifies the name of the table containing all database versions
- * and their corresponding migration script.</li>
- * <li><code>build(...)</code>creates the <code>DataBase</code> instance and initialize the data source with the
- * given properties</li>
+ * <li><code>versionTable("HORCRUX_VERSIONS")</code> specifies the name of the table containing all database
+ * versions and their corresponding migration script.</li>
+ * <li><code>createSchema(true)</code> specifies to apply the script <code>schema.sql</code> if the database is
+ * empty.</li>
+ * <li><code>runUpdates(true)</code> specifies to apply the migration scripts if the database is too old.</li>
+ * <li><code>build()</code>creates the <code>Migration</code>.</li>
  * </ul>
+ * Then, apply <code>Migration.update(DataSource)</code> to update the given database.
  * </p>
- * <p>
- * Then, apply <code>DataBase.open(ECreateOption.SCHEMA, ECreateOption.UPGRADE)</code>. This instruction first checks
- * whether the database is empty or not. if the database is empty and <code>ECreation.SCHEMA</code> is present, 
- * then the <code>schema.sql</code> script is executed before to run the <code>populate.sql</code> script. Next,
- * if the database needs to be upgraded and <code>ECreation.UPGRADE</code> is present, migration scripts are applied.
- * </p>
- * <p>
- * If the database is empty but <code>ECreateOption.SCHEMA</code> is not present, a <code>SQLWarning</code> 
- * is raised. If the database needs to be upgraded but <code>ECreateOption.UPGRADE</code> is not present, a 
- * <code>SQLWarning</code> is raised.
- * </p>
- * <p>
- * Now, you can call <code>DataBase.openSession()</code> to obtain a connection to the database.
- * </p>
- * <h3>Example with HikariCP data source and postgresql</h3>
+ * <h3>Example with in memory H2</h3>
  * <pre>
-        final Properties prop = new Properties();
-        prop.setProperty("jdbcUrl", "jdbc:postgresql:hx");
-        prop.setProperty("username", "totoro");
-        prop.setProperty("password", "2what4?");
-        prop.setProperty("autoCommit", "false");
-        prop.setProperty("poolName", "database-connection-pool");
-        final Path scripts = Paths.get(Main.class.getResource("/db").toURI());
-        try(DataBase db = DataBase.init("pool").withScripts(scripts).versionTable("horcrux_versions").build(prop)) {
-            db.open(ECreateOption.SCHEMA, ECreateOption.UPGRADE);
-            Assert.assertEquals(2, db.getCurrentVersion().intValue());
-        }
- * </pre>
- * <h3>Example with simple data source and in memory H2</h3>
- * <pre>
- *      final Properties prop = new Properties();
- *      prop.setProperty("jdbcUrl", "jdbc:h2:mem:v1;DB_CLOSE_DELAY=-1");
- *      prop.setProperty("username", "harry");
- *      prop.setProperty("password", "");
- *      final Path scripts = Paths.get(getClass().getResource("/dataset/v2").toURI());
- *      try(DataBase db = DataBase.init("basic").withScripts(scripts).versionTable("HORCRUX_VERSIONS").build(prop)) {
- *          db.open(ECreateOption.SCHEMA);
- *          Assert.assertEquals(2, db.getCurrentVersion().intValue());
- *      }
+ *         final DataSource ds = JdbcConnectionPool.create(
+ *                 "jdbc:h2:mem:v1;DB_CLOSE_DELAY=1",
+ *                 "harry",
+ *                 ""
+ *         );
+ *         final Migration migration = new Migration.Builder()
+ *                 .versionTable("horcrux_versions".toUpperCase())
+ *                 .createSchema(true)
+ *                 .runUpdates(true)
+ *                 .withScripts(Paths.get(getClass().getResource("/dataset/v1").toURI()))
+ *                 .build();
+ *         migration.update(ds);
  * </pre>
  * 
  * @author c.fauch

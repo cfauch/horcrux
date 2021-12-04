@@ -39,7 +39,7 @@ public class MigrationTest {
     }
 
     @Test
-    public void testEmptyBaseFirstVersionWithoutSchemaCreation() throws URISyntaxException, SQLException, IOException {
+    public void testEmptyBaseFirstVersionWithoutSchemaCreation() throws URISyntaxException {
         final DataSource ds = JdbcConnectionPool.create(
                 "jdbc:h2:mem:v2;DB_CLOSE_DELAY=1",
                 "harry",
@@ -73,7 +73,7 @@ public class MigrationTest {
     }
 
     @Test
-    public void testOldExistingBaseWithoutUpgrade() throws URISyntaxException, SQLException, IOException {
+    public void testOldExistingBaseWithoutUpgrade() throws URISyntaxException {
         final URI dbFile = getClass().getResource("/dataset/v1/").toURI().resolve("v1");
         final String url = String.format("jdbc:h2:%s", dbFile.getPath());
         final DataSource ds = JdbcConnectionPool.create(
