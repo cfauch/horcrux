@@ -6,5 +6,5 @@ CREATE TABLE IF NOT EXISTS HORCRUX_USERS (
 );
 
 -- set to true the current version of the database
-UPDATE HORCRUX_VERSIONS SET active = TRUE WHERE number = 2;
-UPDATE HORCRUX_VERSIONS SET active = FALSE WHERE number != 2;
+-- UPDATE HORCRUX_VERSIONS SET active = TRUE WHERE number = 2;
+-- UPDATE HORCRUX_VERSIONS SET active = FALSE WHERE number != 2;

@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS HORCRUX_VERSIONS (
 MERGE INTO HORCRUX_VERSIONS (number, script, active) KEY(number) VALUES(2, NULL, true);
 
 -- do other tables and constraints creation
+-- insert data
 CREATE TABLE IF NOT EXISTS HORCRUX_USERS (
     id UUID PRIMARY KEY,
     name VARCHAR(64),
