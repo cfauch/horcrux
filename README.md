@@ -23,6 +23,18 @@ Then choose the JDBC driver for the database you want to use:
     </dependency>
 ```
 
+In case of `module.info` you have to import the module with the line:
+`requires com.code.fauch.horcrux` and optionally if you use postgresql driver
+you have also to import this module: `requires org.postgresql.jdbc`.
+Here is the module-info used for the following example:
+
+```
+module test {
+    requires com.code.fauch.revealer;
+    requires org.postgresql.jdbc;
+}
+```
+
 ## Database versioning with horcrux
 
 Horcrux use SQL script files to create, populate and update database.
